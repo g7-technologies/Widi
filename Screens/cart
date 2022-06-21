@@ -1,0 +1,210 @@
+import {
+    ADD_FOOD,
+    DELETE_FOOD,
+    ADD_TO_CART,
+    REMOVE_FROM_CART,
+  } from "../actions/Types";
+  
+  const initialState = {
+    foodList: [],
+    Item_Quantity: 0,
+    price: 0,
+    cartitem: 1,
+    Food_Names: [],
+  };
+  
+  const cartItem = (state = initialState, action) => {
+    switch (action.type) {
+      case ADD_FOOD:
+    
+        // alert(action.totalprice)
+        var matched = false;
+        for (var i = 0; i < state.foodList.length; i++) {
+          if (state.foodList[i].name.id == action.food.id) {
+            matched = true;
+              return {
+                ...state,
+                  foodList: state.foodList.filter(function (e) {
+                     if(e.key === action.key)
+                     {
+                       return{
+                       
+                        key: action.food.id,
+                        name: action.food,
+                        Item_Quantity: state.Item_Quantity + action.quantity,
+                        price: action.totalprice
+                       }
+                     }
+                  }),
+                
+              };
+            
+            
+            
+           
+          }
+        }
+       
+  
+        if (matched == false) {
+          return {
+            ...state,
+            foodList: state.foodList.concat({
+              key: action.food.id,
+              name: action.food,
+              Item_Quantity: state.Item_Quantity + action.quantity,
+              price: action.totalprice
+            }),
+          };
+        }
+  
+        break;
+      case DELETE_FOOD:
+        return {
+          ...state,
+          foodList: state.foodList.filter(function (e) {
+            return e.key !== action.key;
+          }),
+        };
+  
+        break;
+  
+      case ADD_TO_CART:
+        alert("add  to cart called");
+        break;
+      case REMOVE_FROM_CART:
+        alert("remove from cart called");
+        break;
+    }
+    return state;
+  };
+  export default cartItem;
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  ///////////////////////////////////////
+
+
+
+
+
+  import {
+    ADD_FOOD,
+    DELETE_FOOD,
+    ADD_TO_CART,
+    REMOVE_FROM_CART,
+  } from "../actions/Types";
+  
+  const initialState = {
+    foodList: [],
+    Item_Quantity: 0,
+    price: 0,
+    cartitem: 1,
+    Food_Names: [],
+  };
+  
+  const cartItem = (state = initialState, action) => {
+    switch (action.type) {
+      case ADD_FOOD:
+        // alert(action.totalprice)
+        // console.log('Food List ************')
+        // console.log(state.foodList)
+        // console.log('food name ************')
+        // console.log(action.food)
+        // console.log('Item_Quantity ************')
+        // console.log(state.Item_Quantity)
+        // console.log('price ******e*****')
+        // console.log(state.price)
+        
+      
+        
+        var matched = false;
+        for (var i = 0; i < state.foodList.length; i++) {
+          // console.log('List id ******e*****')
+          // console.log(state.foodList[i].name.id)
+          // console.log('item id ******e*****')
+          // console.log(action.food.id)
+          // console.log('condition ******e*****')
+          // console.log(state.foodList[i].name.id == action.food.id)
+          if (state.foodList[i].name.id == action.food.id) {
+           
+            
+            matched = true;
+            state.foodList[i].Item_Quantity = state.Item_Quantity + action.quantity;
+            state.foodList[i].price = action.totalprice*(state.Item_Quantity + action.quantity);
+  
+           
+              return {
+              ...state,
+                
+                
+                 
+              };
+             
+            
+           
+          }
+        }
+       
+  
+        if (matched == false) {
+          // console.log('inside match false')
+          // console.log('item id ******e*****')
+          // console.log(action.food.id)
+          // console.log('food name ******e*****')
+          // console.log(action.food)
+          // console.log('Item_Quantity ******e*****')
+          // console.log(state.Item_Quantity + action.quantity)
+          // console.log('price ******e*****')
+          // console.log(action.totalprice)
+  
+            state.foodList.push({
+              key: action.food.id,
+              name: action.food,
+              Item_Quantity: state.Item_Quantity + action.quantity,
+              price: action.totalprice
+            })
+            // console.log('------foodlist-----')
+            // console.log(state.foodList)
+          
+        }
+  
+        break;
+      case DELETE_FOOD:
+        return {
+          ...state,
+          foodList: state.foodList.filter(function (e) {
+            return e.key !== action.key;
+          }),
+        };
+  
+        
+  
+        break;
+  
+      case ADD_TO_CART:
+        alert("add  to cart called");
+        break;
+      case REMOVE_FROM_CART:
+        return {
+          ...state,
+          foodList: state.foodList.filter(function (e) {
+            return e.key !== action.key;
+          }),
+        };
+        break;
+    }
+    return state;
+  };
+  export default cartItem;
+  

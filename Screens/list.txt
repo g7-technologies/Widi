@@ -1,0 +1,291 @@
+
+import React, { Component } from 'react';
+import {
+  SafeAreaView,
+  StyleSheet,
+  ScrollView,
+  View,
+  Text,
+ 
+  Animated,
+  Dimensions,
+  TouchableOpacity,
+  Platform,
+  Easing,
+} from 'react-native';
+import { Ionicons,AntDesign } from '@expo/vector-icons';
+import { FlatList } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {basepath } from "../BasePath/Basepath";
+
+const { width } = Dimensions.get("window");
+export default class App extends Component{
+  constructor(props){
+    super(props);
+    this.state = {
+      active: 0,
+      xTabOne: 0,
+      xTabTwo: 1,
+      translateX: new Animated.Value(0),
+      translateXTabOne: new Animated.Value(0),
+      translateXTabTwo: new Animated.Value(width),
+      translateY: -1000,
+      pending_orders:[]
+    };
+  }
+  
+  ChangePosition=()=>{
+    this.refs.scroll.scrollTo({x:Dimensions.get('window').width})
+    this.setState({xTabOne:1,xTabTwo:0})
+    Animated.spring(this.state.translateX,{
+      toValue:1,
+      duration: 100,
+      
+      useNativeDriver:true
+    }).start()
+  }
+  OrignalPosition=()=>{
+    this.refs.scroll.scrollTo({x:0})
+    this.setState({xTabOne:0,xTabTwo:1})
+    Animated.spring(this.state.translateX,{
+      toValue:0,
+      duration: 100,
+      
+      useNativeDriver:true
+    }).start()
+  }
+  componentDidMount(){
+    this.GetDeliveryboyinfo()
+  }
+  GetDeliveryboyinfo=async()=>{
+    var id=await AsyncStorage.getItem('USER_DATA')
+    var user=JSON.parse(id)
+    var uid=user.id
+    this.Pending_Orders(uid)
+ 
+  }
+  Pending_Orders=(id)=>{
+    const formData = new FormData()
+    
+    formData.append('customer_id', id);
+   
+    try{
+      fetch(`${basepath}customer_orders`, {
+        method: 'POST',
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
+        },
+        body:formData
+      })
+      .then((response) => response.json())
+      .then((responseJson) => {
+     
+        if(!responseJson.error == true){
+          console.log(responseJson)
+       this.setState({pending_orders:responseJson.orders})
+    // alert(p)
+    
+        }else{
+           
+           alert('Some Error Occure')
+        }
+      })
+      .catch((error) =>{});
+    }catch(e){}
+  }
+  RenderCompletedOrdersList=(item)=>{
+    if(item.status==4){
+      return(
+        <RiderCompletedOrders item={item} navigation={this.props.navigation}/>
+      )
+    }
+
+  }
+  RenderInProgressOrdersList=(item)=>{
+    if(item.status!=4){
+      return(
+        <RiderOrders item={item} navigation={this.props.navigation}/>
+      )
+    }
+
+  }
+  TrackScreen=()=>{
+    if(Platform.OS=='ios'){
+      this.props.navigation.navigate('TrackOrder')
+    }else{
+      this.props.navigation.navigate('TrackOrderandroid')
+    }
+  }
+  render(){
+  const ChangeColorPosition=this.state.translateX.interpolate({
+    inputRange:[0,1],
+    outputRange:[0,Dimensions.get('window').width/2-22]
+  })
+  const textcolor=this.state.translateX.interpolate({
+    inputRange:[0,1],
+    outputRange:['#fff','#000000']
+  })
+  const bactoOrignal=this.state.translateX.interpolate({
+    inputRange:[0,1],
+    outputRange:[0,Dimensions.get('window').width]
+  })
+     return (
+      <>
+        <View style={styles.header}>
+        <TouchableOpacity onPress={()=>this.props.navigation.goBack(null)} style={{flexDirection:'row',alignItems:'center',margin:5,marginLeft:20,}}>
+            {Platform.OS=='ios'?
+                <Ionicons name="ios-arrow-back" style={{top:4}} size={24} color="#fff" />
+                :
+                <Ionicons name="md-arrow-back" style={{top:4}} size={24} color="#FFF" />
+            }
+            <Text style={styles.textcolor}>History</Text>
+
+        </TouchableOpacity>
+        </View>
+        
+          <View style={{flex:1,}}>
+            <View style={{flexDirection:'row',borderColor:'#007aff',borderWidth:1,borderRadius:4,width:Dimensions.get('window').width-20,alignSelf:'center',justifyContent:'space-between',marginTop:40,}}>
+              
+                <TouchableOpacity onPress={()=>this.OrignalPosition()} style={{justifyContent:'center',alignItems:'center',width:Dimensions.get('window').width/2,height:35}}>
+                  <Animated.View style={{borderRadius:2,width:Dimensions.get('window').width/2,position:'absolute',top:0,left:0,bottom:0,right:0,padding:10,transform:[{
+                      translateX:ChangeColorPosition
+                    }],backgroundColor:'#007aff'}}/>
+                  <Animated.Text style={{textAlign:'center',fontWeight:'bold',fontFamily:'poppinbold',color:this.state.xTabOne==0?'#fff':'black'}}>In-Progress</Animated.Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={()=>this.ChangePosition()} style={{justifyContent:'center',alignItems:'center',width:Dimensions.get('window').width/2,height:35}}>
+                  <Animated.View style={{width:Dimensions.get('window').width,position:'absolute',top:0,left:0,bottom:0,right:0,padding:10,transform:[{
+                     translateX:bactoOrignal
+                    }]}}/>
+                  <Text style={{textAlign:'center',fontFamily:'poppinbold',marginRight:20,color:this.state.xTabTwo==1?'black':'white'}}>Completed</Text>
+                </TouchableOpacity>
+                
+            
+            </View>
+            <ScrollView
+              showsHorizontalScrollIndicator={false}
+             onScroll={({nativeEvent})=>{
+              var position=nativeEvent.contentOffset.x;
+              var width=Dimensions.get('window').width;
+              var currentindex=position/width;
+              if(currentindex==1){
+                this.ChangePosition()
+              }else if(currentindex==0){
+                this.OrignalPosition()
+              }
+          }}
+            ref={'scroll'} horizontal  pagingEnabled style={{flex:1,marginTop:10}}>
+             
+             {/* Screen 1 */}
+              <View style={{width:Dimensions.get('window').width}}>
+              <FlatList
+                    showsHorizontalScrollIndicator={false}
+                    
+                    keyExtractor={()=>Math.random().toString()}
+                    contentContainerStyle={{ marginHorizontal: 10 }}
+                    data={this.state.pending_orders}
+                    renderItem={({ item, index }) => (
+                      <View style={styles.Container}>
+                
+                          <View style={styles.minicontainer}>
+                              <Text style={{fontFamily:'poppinbold'}}>{item.order_detail.created_at}</Text>
+                              <TouchableOpacity onPress={()=>this.TrackScreen()} style={{flexDirection:'row',alignItems:'center'}}>
+                                  <Text style={{...styles.graytext,marginRight:5,fontFamily:'poppin'}}>Track</Text>
+                                  <AntDesign name="right" size={12} color="#b7b7b7" />
+                              </TouchableOpacity>
+                          </View>
+                          <View style={styles.minicontainer}>
+                              
+                              <Text style={styles.graytext}>Sep 22,11:10 PM</Text>
+                              <Text style={{fontFamily:'poppinbold'}}>$ 450</Text>
+                          </View>
+                          <View style={styles.borderLine}/>
+                      </View>
+                    )}
+                  />
+                
+                
+                
+                
+              </View>
+
+             {/* Screen 2//////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
+              <View style={{width:Dimensions.get('window').width}}>
+              <FlatList
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={()=>Math.random().toString()}
+              contentContainerStyle={{ marginHorizontal: 10 }}
+              data={[{},{},{}]}
+              renderItem={({ item, index }) => (
+                <View style={styles.Container}>
+                    <View style={styles.minicontainer}>
+                        <Text style={{fontFamily:'poppin'}}>RWPT-6363-UJD</Text>
+                        <Text style={{color:'#0f76de',fontFamily:'poppinbold'}}>Completed</Text>
+                    </View>
+                    <View style={styles.minicontainer}>
+                        
+                        <Text style={styles.graytext}>Sep 22,11:10 PM</Text>
+                        <Text style={{fontFamily:'poppinbold'}}>$ 450</Text>
+                    </View>
+                    <Text onPress={()=>this.props.navigation.navigate('CompletedOrder')}>See Detail</Text>
+                    <View style={styles.borderLine}/>
+                </View>
+              )}
+            />
+                
+                
+              </View>
+            </ScrollView>
+
+          </View>
+      </> 
+    );
+  }
+};
+
+const styles = StyleSheet.create({
+  header:{
+    backgroundColor:'#0f76de',
+    height:60,
+    justifyContent:'center',
+    // marginTop:Platform.OS=='android'?25:0 
+  },
+  textcolor:{
+   fontFamily:'poppinbold',
+    color:'#fff',
+    top:4,
+    marginLeft:30
+  },
+  Body:{
+    flex:1,
+  
+    justifyContent:'center',
+    alignItems:'center'
+  },
+    Container:{
+        margin:10,
+      justifyContent:'space-between',
+      paddingVertical:5,
+      paddingHorizontal:5
+    },
+    graytext:{
+        color:'#5c5c5c',
+        fontFamily:'poppin'
+    },
+    textstyle:{
+        fontWeight:'600'
+    },
+    minicontainer:{
+        flexDirection:'row',
+        justifyContent:'space-between',
+        marginVertical:4
+    },
+    borderLine:{
+        width:'100%',
+        borderColor:'#dddddd',
+        marginTop:10,
+        borderBottomWidth:0.5,
+        alignSelf:'center'
+    },
+});
+ 
