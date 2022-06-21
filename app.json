@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "widi",
+    "slug": "widi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "myapp",
+    "splash": {
+      "image": "./assets/newSplash_30.png",
+      "resizeMode":"contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "The application requires access to your photos to allow you to upload a profile picture."
+      },
+      "config": {
+        "googleMapsApiKey": "your key",
+        "googleSignIn": {
+          "reservedClientId": "216160133063-ht0ol9rnsigk3ts5ne0a0s640dnac85g.apps.googleusercontent.com"
+        }
+      },
+      "bundleIdentifier": "com.g7technologies.widi"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.g7technologies.widi",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "your key"
+        },
+        "googleSignIn": {
+          "certificateHash": "90:4A:27:8A:A2:98:DB:86:32:5A:2C:AA:48:A9:59:A4:27:28:47:F5"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "description": "0.3.2.19"
+  }
+}

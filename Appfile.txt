@@ -1,0 +1,974 @@
+import React, { Component, isValidElement, useState } from "react";
+import {
+  FlatList,
+  Alert,
+  Modal,
+  Animated,
+  StyleSheet,
+  TextInput,
+  Image,
+  Text,
+  ScrollView,
+  View,
+  ImageBackground,
+  Platform,
+  Button,
+  TouchableWithoutFeedback,
+  Dimensions,
+  
+} from "react-native";
+
+import {
+  Ionicons,
+  MaterialIcons,
+  AntDesign,
+  Fontisto,
+} from "@expo/vector-icons";
+import { TouchableOpacity } from "react-native-gesture-handler";
+import { StatusBar } from "expo-status-bar";
+import * as Location from "expo-location";
+import { Entypo } from "@expo/vector-icons";
+//
+import FoodCatagory from "../Component/FoodCatagory";
+import CustomSingleScroll from "../Component/CustomSingleScroll";
+import CustomSingleItemScroll from "../Component/CustomSingleItemScroll";
+import { connect } from "react-redux";
+import BottomSheet from "reanimated-bottom-sheet";
+import MapView, { Marker, Callout } from "react-native-maps";
+import FilterScreens from "../Screens/Filter_Sub_Screens";
+import { basepath } from "../BasePath/Basepath";
+// function name(params) {
+//       const loaded = Font.useFonts({
+//     poppin:require('../assets/Poppins/Poppins-Regular.ttf'),
+//     poppinbold:require('../assets/Poppins/Poppins-SemiBold.ttf')
+//    });
+//    if(!loaded){
+//     return <View style={{justifyContent:'center',alignItems:'center',flex:1}}><Text>Loading App Please wait.....</Text></View>;
+//   }
+// }
+
+const dataArray = [
+  {
+    title: "Pizza",
+    active: 0,
+    backgroundColor: "#0f76de",
+    color: "#fff",
+    key: "pizza",
+  },
+  {
+    title: "Fast Food",
+    active: 1,
+    backgroundColor: "#0f76de",
+    color: "#fff",
+    key: "fast food",
+  },
+  { title: "Chicken Grill", active: 2, key: "Chicken Grill" },
+  { title: "Fish", active: 3, key: "Fish" },
+  {
+    title: "Pizza",
+    active: 0,
+    backgroundColor: "#0f76de",
+    color: "#fff",
+    key: "pizzas",
+  },
+  {
+    title: "Fast Food",
+    active: 1,
+    backgroundColor: "#0f76de",
+    color: "#fff",
+    key: "fast sfood",
+  },
+  { title: "Chicken Grill", active: 2, key: "Chickens Grill" },
+  { title: "Fish", active: 3, key: "Fiash" },
+];
+
+class HomeScreen extends Component {
+  constructor(props) {
+    super(props);
+    this.sheetRef = React.createRef();
+    this.map = React.createRef();
+    this.state = {
+      Focus: false,
+      location: {},
+      Usecurrentlocaitionmap: new Animated.Value(0),
+      UsecurrentlocaionStatus: false,
+      Usecurrentlocaitionmapsearch: new Animated.Value(0),
+      UsecurrentlocaionStatussearch: false,
+      CatagoryFilters: new Animated.Value(0),
+      isfilterenable: false,
+      EnableFilterstatus: false,
+      Data_Catagories: [],
+      Duplicate_Data_Resturants: [],
+      Duplicate_Data_Top_Rated: [],
+      Data_Resturants: [],
+      Data_Top_Rated: [],
+      Filter_Array: [],
+      location: null,
+      showTopRated: true,
+      showchangeLocationalert:null,
+      Location_Name:'',
+      autocompletedataarray:[],
+      place:'',
+      suggestion:false,
+      personlatitude:null,
+      personlongtitude:null
+      // Filter_user_Food:[]
+    };
+    //  this.loaded()
+  }
+  
+  
+  componentDidMount() {
+    this.unsubscribe = this.props.navigation.addListener("focus", () => {
+      this.Resturants_Catagories_and_Detail();
+    });
+   
+    this.Get_User_Current_Position();
+  }
+
+  Get_User_Current_Position = async () => {
+    let { status } = await Location.requestPermissionsAsync();
+    if (status !== "granted") {
+      setErrorMsg("Permission to access location was denied");
+      return;
+    }
+
+    let location = await Location.getCurrentPositionAsync({});
+    this.setState({ location: location.coords, personlatitude:location.coords.latitude,personlongtitude:location.coords.longitude });
+   
+    this.Geo_Code(location.coords.latitude,location.coords.longitude)
+    // alert(JSON.stringify(location.coords))
+  };
+
+  Geo_Code=async(latitude,longitude)=> {
+    let resp=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyC_LWPOTamnTLKR0IVa5pX_w2Zxo9hE0Sw`)
+    let respJson = await resp.json();
+   
+  
+    //  searchuserlocation(respJson.results[0].formatted_address)
+  
+    this.setState({Location_Name:respJson.results[0].formatted_address})
+  
+      this.setState({personlatitude: respJson.results[0].geometry.location.lat,personlongtitude:respJson.results[0].geometry.location.lng})
+      // placelongtitude(respJson.results[0].geometry.location.lng)
+   this.centerMap(respJson.results[0].geometry.location.lat,respJson.results[0].geometry.location.lng)
+
+  }
+   centerMap=(lat,lng)=>{
+    let latitude=lat
+    let longitude=lng
+    let latitudeDelta=0.045
+    let longitudeDelta=0.045
+    this.setState({personlatitude:lat,personlongtitude:lng})
+  //  console.log('**********************')
+  //   console.log('center map',this.map.current)
+  //  console.log('**********************')
+
+    this.map.current.animateToRegion({
+      latitude,
+      longitude,
+      latitudeDelta,
+      longitudeDelta
+    })
+  }
+
+
+    autocompleteplaces =async (places)=> {
+      
+      if (places == "") {
+        return;
+      }
+    // this.setState({ onautocompleteplacescoming: true });
+    // Restricted to specific Area e.g 500 meter radius
+    // https://maps.googleapis.com/maps/api/place/autocomplete/xml?input=Amoeba&types=establishment&location=37.76999,-122.44696&radius=500&strictbounds&key=YOUR_API_KEY
+    let resp = await fetch(
+      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${places}&key=AIzaSyC_LWPOTamnTLKR0IVa5pX_w2Zxo9hE0Sw`
+    );
+    let respJson = await resp.json();
+    // console.log('predictions',respJson)
+    this.setState({autocompletedataarray:respJson.predictions})
+    if (respJson.status == "ZERO_RESULTS") {
+      
+      // Toast.show("No Such Place Found");
+    }
+    // autocompletedataarray: 
+  // setautocompletedataarray(respJson.predictions);
+  };
+
+  Resturants_Catagories_and_Detail = () => {
+    const formData = new FormData();
+    formData.append("customer_id", "2");
+    formData.append("latitude", 23.342342);
+    formData.append("longtitude", 72.232432);
+
+    try {
+      fetch(`${basepath}customer_home`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "multipart/form-data",
+        },
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((responseJson) => {
+          console.log(responseJson);
+          if (!responseJson.error == true) {
+            // navigation.navigate('Dashboard')
+            this.setState({
+              Data_Catagories: responseJson.food_type,
+              Data_Resturants: responseJson.resturants,
+              Duplicate_Data_Resturants: responseJson.resturants,
+              Data_Top_Rated: responseJson.top_rated,
+              Duplicate_Data_Top_Rated: responseJson.top_rated,
+            });
+            var temp = [];
+            responseJson.resturants.forEach((element) => {
+              temp.push(element);
+              // this.state.Data_Catagories[element].resturants.forEach(ele =>{
+              //
+              // });
+            });
+            this.setState({ Filter_user_Food: temp });
+          } else {
+            alert('Some error occure'+responseJson.error);
+          }
+        })
+        .catch((error) => {});
+    } catch (e) {}
+  };
+
+  Show_CurrentLocation_With_Map = (Usecurrentlocaitionmap) => {
+    if (!this.state.UsecurrentlocaionStatus) {
+      Animated.timing(this.state.Usecurrentlocaitionmap, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(this.state.Usecurrentlocaitionmap, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    }
+
+    this.setState({
+      UsecurrentlocaionStatus: !this.state.UsecurrentlocaionStatus,
+    });
+  };
+  
+  Show_or_Hide_filters = (Usecurrentlocaitionmap) => {
+    if (!this.state.EnableFilterstatus) {
+      Animated.timing(this.state.CatagoryFilters, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(this.state.CatagoryFilters, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    }
+
+    this.setState({
+      EnableFilterstatus: !this.state.EnableFilterstatus,
+    });
+  };
+
+  Filter_Categories = (index, name) => {
+    let check = false;
+    for (var i = 0; i < this.state.Filter_Array.length; i++) {
+      if (this.state.Filter_Array[i] == index) {
+        check = true;
+        this.state.Filter_Array.splice(i, 1);
+      }
+    }
+    if (check == false) {
+      this.state.Filter_Array.push(index);
+    }
+    let temp = [];
+    this.state.Filter_Array.forEach((element) => {
+      this.state.Data_Catagories[element].resturants.forEach((ele) => {
+        temp.push(ele);
+      });
+    });
+    if (this.state.Filter_Array.length == 0) {
+      this.setState({
+        Duplicate_Data_Resturants: this.state.Data_Resturants,
+        Duplicate_Data_Top_Rated: this.state.Data_Top_Rated,
+      });
+    } else {
+      this.setState({ Duplicate_Data_Resturants: temp });
+      this.setState({ Duplicate_Data_Top_Rated: [] });
+    }
+  };
+  FilterFood = (param) => {
+    var Food = this.state.Filter_user_Food;
+    var ara = [];
+    for (var i = 0; i < Food.length; i++) {
+      var x = Food[i].name.toUpperCase();
+      if (x.match(param.toUpperCase())) {
+        ara.push(Food[i]);
+      }
+    }
+    if (param.length == 0) {
+      this.setState({
+        Duplicate_Data_Resturants: this.state.Data_Resturants,
+        showTopRated: true,
+      });
+    } else {
+      this.setState({ Duplicate_Data_Resturants: ara, showTopRated: false });
+    }
+  };
+  Save_New_Current_Location=()=>{
+    alert('save')
+  }
+    Place_Latitude_Longtitue=async(params)=>{
+    let resp = await fetch(
+      `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${params}&inputtype=textquery&fields=formatted_address,geometry&key=AIzaSyC_LWPOTamnTLKR0IVa5pX_w2Zxo9hE0Sw`
+    );
+    let respJson = await resp.json();
+      // console.log('place latitude',respJson)
+      this.setState({personlatitude :  respJson.candidates[0].geometry.location.lat})
+      this.setState({personlongtitude: respJson.candidates[0].geometry.location.lng})
+    
+      this.Geo_Code(respJson.candidates[0].geometry.location.lat,respJson.candidates[0].geometry.location.lng)
+    
+    
+      // this.setState({Location_Name:respJson.candidates[0].formatted_address})
+     //  placelongtitude(respJson.candidates[0].geometry.location.lng)
+      // const location=
+      //   {
+      //     'latitude':respJson.candidates[0].geometry.location.lat,
+      //     'longitude':respJson.candidates[0].geometry.location.lng
+      //   }
+      // 
+      // this.Geo_Code(location)
+    // alert(JSON.stringify(location))
+      // //  alert(params)
+   }
+  // searchlocation=async(location)=>{
+  //   alert(location.longitude)
+  //   return
+  //   let resp=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${location.latitude},${location.longitude}&key=AIzaSyC_LWPOTamnTLKR0IVa5pX_w2Zxo9hE0Sw`)
+  //   let respJson = await resp.json();
+  //   console.log(respJson)
+  // }
+  render() {
+    const LocationMap = this.state.Usecurrentlocaitionmap.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 400],
+    });
+
+    const filtersheight = this.state.CatagoryFilters.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 50],
+    });
+    return (
+      <>
+     
+        <View style={styles.header}>
+          <View
+            style={{
+              flexDirection: "row",
+              marginTop: 5,
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => this.props.navigation.openDrawer()}
+            >
+              <Image
+                source={require("../assets/Drawericon.png")}
+                style={{ width: 20, height: 20 }}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() =>
+              {if(!this.state.UsecurrentlocaionStatus){
+                Alert.alert(
+                  "Alert",
+                  "By Changing Location everything in your cart will be lost?",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () =>{this.setState({showchangeLocationalert:1}),this.Show_CurrentLocation_With_Map(
+                        this.state.Usecurrentlocaitionmap
+                      ),this.props.emptycart()},
+                     
+                    },
+                    { text: "Cancel" },
+                  ],
+                  { cancelable: false }
+                )}else{
+                  this.Show_CurrentLocation_With_Map(
+                    this.state.Usecurrentlocaitionmap
+                  )
+                }
+
+              }
+              }
+             
+              style={{ alignSelf: "center", alignItems: "center" }}
+            >
+              <Text
+                style={{ color: "#fff", fontSize: 10, fontFamily: "poppin" }}
+              >
+                Delivering to:{" "}
+              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text
+                  style={{
+                    color: "#fff",
+                    fontSize: 12,
+                    fontFamily: "poppinbold",
+                  }}
+                >
+                  Current Location{" "}
+                </Text>
+                <AntDesign name="right" size={10} color="#fff" />
+              </View>
+            </TouchableOpacity>
+
+            <View style={{ alignSelf: "center" }}>
+              <View style={styles.Cartnumbercontainer}>
+                <Text
+                  onPress={() => this.props.navigation.navigate("MyCart")}
+                  style={{  color: "#fff", textAlign:'center' }}
+                >
+                  {this.props.cartitem.length}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => this.props.navigation.navigate("MyCart")}
+              >
+                <Fontisto name="opencart" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        {this.state.EnableFilter ? (
+          <View style={StyleSheet.absoluteFill}>
+            <View style={styles.centeredView}>
+              <Modal
+                animationType="slide"
+                transparent={true}
+                visible={this.state.EnableFilter}
+                onRequestClose={() => this.setState({ EnableFilter: false })}
+              >
+                <View style={styles.centeredView}>
+                  <View style={styles.modalView}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        padding: 10,
+                      }}
+                    >
+                      <AntDesign
+                        onPress={() => this.setState({ EnableFilter: false })}
+                        name="close"
+                        size={15}
+                        color="#0f76de"
+                      />
+                      <Text style={styles.modalText}> Filter</Text>
+                    </View>
+                    <View>
+                      <FlatList
+                        showsHorizontalScrollIndicator={false}
+                        horizontal
+                        contentContainerStyle={{ marginHorizontal: 10 }}
+                        data={dataArray}
+                        renderItem={({ item, index }) => (
+                          <FoodCatagory item={item.title} />
+                        )}
+                      />
+                    </View>
+
+                    <FilterScreens />
+                    <TouchableOpacity
+                      onPress={() => this.setState({ EnableFilter: false })}
+                      style={styles.LoginButton}
+                    >
+                      <Text style={styles.text}>Apply Filter</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+            </View>
+          </View>
+        ) : null}
+
+        <Animated.View
+          style={{
+            position: "relative",
+            backgroundColor: "#fff",
+            height: LocationMap,
+          }}
+        >
+          <View>
+            <TextInput 
+              onChangeText={(place)=>this.setState({place:place,suggestion:true},()=>this.autocompleteplaces(place))} 
+             placeholder='Enter Place Name'
+            //  onBlur={()=>this.setState({suggestion:false})}
+             onSubmitEditing={()=>this.setState({suggestion:false})}
+             style={{borderWidth:0.5,borderColor:'#dddddd',borderRadius:2,marginTop:10,padding:5,width:'90%',alignSelf:'center'}}/>
+          </View>
+
+          
+          <View
+            style={{
+              padding: 10,
+              width: "100%",
+              height: 300,
+              backgroundColor: "#fff",
+            }}
+          >
+            
+            {this.state.location == null ? (
+              <View>
+                <Text>Getting Location...</Text>
+              </View>
+            ) : (
+              <View style={{flex:1}}>
+                <MapView
+                ref={this.map}
+                onMarkerDragEnd={(e) =>this.Geo_Code(e.nativeEvent.coordinate) }
+                onPress={(e) =>this.Geo_Code(e.nativeEvent.coordinate) }
+                  
+                onMarkerDragEnd={(e) =>{this.Geo_Code(e.nativeEvent.coordinate.latitude,e.nativeEvent.coordinate.longitude) ,this.setState({location:e.nativeEvent.coordinate})}}
+                onPress={(e) =>{this.Geo_Code(e.nativeEvent.coordinate.latitude,e.nativeEvent.coordinate.longitude) ,this.setState({location:e.nativeEvent.coordinate})}}
+                
+                
+                initialRegion={{
+                    latitude: this.state.location.latitude,
+                    longitude: this.state.location.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <Marker
+                  draggable={true}
+                    image={require("../assets/icons8-marker-80.png")}
+                    coordinate={{
+                      latitude: this.state.personlatitude==null? this.state.location.latitude:this.state.personlatitude,
+                      longitude: this.state.personlongtitude==null? this.state.location.longitude:this.state.personlongtitude,
+                    }}
+                  >
+                    <Callout>
+                      <Text>My Current Location</Text>
+                    </Callout>
+                  </Marker>
+                </MapView>
+                  <View style={{position:'absolute',width:'100%'}}>
+                    {this.state.place.length>0?
+                    this.state.suggestion?
+                    <View style={{width:'100%',height:150,backgroundColor:'#fff'}}>
+                    <FlatList
+                        keyExtractor={(item)=>item.place_id}
+                        data={this.state.autocompletedataarray}
+                        contentContainerStyle={{width:'100%'}}
+                        renderItem={({ item, index, separators }) => (
+                          <TouchableWithoutFeedback
+                            key={item.key}
+                            onPress={() =>{this.Place_Latitude_Longtitue(item.description),this.setState({suggestion:false})}}
+                            >
+                            <View style={{width:300,borderBottomWidth:0.4,borderBottomColor:'#dddddd', backgroundColor: 'white' }}>
+                              <Text style={{padding:5}}>{item.description}</Text>
+                            </View>
+                          </TouchableWithoutFeedback>
+                        )}
+                      />
+                      </View>
+                      :null
+                      :null}
+                    </View>
+              </View>
+            )}
+            {/* <View style={StyleSheet.absoluteFill}>
+            <FlatList
+              keyExtractor={(item)=>item.title.toString()}
+              data={[
+                {'title':'Saheen abad','city':'Gujranwala'},
+                {'title':'Lari Adda','city':'Isalmabad'},
+                {'title':'Rahwali','city':'Gujranwala'},
+                {'title':'modal town','city':'Lahore'},
+                {'title':'satellite town','city':'Pindi'}
+              ]}
+              renderItem={({ item, index, separators }) => (
+                <TouchableWithoutFeedback
+                  key={item.key}
+                  onPress={() =>{this.searchlocation(item.title)}}
+                  >
+                  <View style={{ backgroundColor: 'white' }}>
+                    <Text>{item.title}</Text>
+                  </View>
+                </TouchableWithoutFeedback>
+              )}
+            />
+            </View> */}
+            <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            
+               <View>
+                    <Text
+                    style={{
+                      fontFamily: "poppinbold",
+                      color: "#0f76de",
+                      marginVertical: 10,
+                    }}
+                  >
+                    Current Location
+                  </Text>
+                  <Text style={{ fontSize: 10, color: "#5c5c5c" }}>
+                    {this.state.Location_Name.length>40?this.state.Location_Name.substr(0,40):this.state.Location_Name}
+                  </Text>
+               </View>
+            <MaterialIcons onPress={()=>this.Get_User_Current_Position()} name="gps-fixed" size={24} style={{marginRight:10}} color={'#0f76de'} />
+         
+           </View>
+            
+          </View>
+            
+          <View
+            style={{
+              borderBottomWidth: 1,
+              marginTop: 4,
+              borderColor: "#dddddd",
+            }}
+          />
+        </Animated.View>
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          onEndReached={() => {
+            alert("get new data");
+          }}
+          nestedScrollEnabled={true}
+          onEndReachedThreshold={0.5}
+          style={styles.container}
+        >
+          {/* Search bar-..////////////////////////////////////////////////////////////////// */}
+          <View style={styles.searchbarsection}>
+            <View style={styles.searchbar}>
+              <Image
+                source={require("../assets/search.png")}
+                style={{ width: 15, height: 15 }}
+              />
+              <View style={{ width: "100%" }}>
+                <TextInput
+                  onFocus={() => this.setState({ Focus: true })}
+                  onBlur={() => this.setState({ Focus: false })}
+                  onChangeText={(food) => this.FilterFood(food)}
+                  placeholderTextColor="#5c5c5c"
+                  placeholder="Find something you like"
+                  style={{ paddingHorizontal: 10, fontFamily: "poppin" }}
+                />
+              </View>
+            </View>
+            <View style={styles.filterbutton}>
+              <TouchableOpacity
+                onPress={() =>
+                  this.Show_or_Hide_filters(this.state.CatagoryFilters)
+                }
+              >
+                <Image
+                  source={require("../assets/filter.png")}
+                  style={{ width: 15, height: 15 }}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.likedbutton}>
+              <TouchableOpacity
+                onPress={() => this.props.navigation.navigate("SavedResturant")}
+              >
+                <Image
+                  source={require("../assets/liked.png")}
+                  style={{ width: 20, height: 20 }}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+          {/* Buttons ---////////////////////////////////////////////////////////////////////////////////////// */}
+
+          <Animated.View style={{ height: filtersheight }}>
+            <FlatList
+              showsHorizontalScrollIndicator={false}
+              horizontal
+              keyExtractor={(item) => item.name}
+              contentContainerStyle={{ marginHorizontal: 10 }}
+              data={this.state.Data_Catagories}
+              renderItem={({ item, index }) => (
+                <FoodCatagory
+                  onPress={() => this.Filter_Categories(index, item.name)}
+                  index={index}
+                  item={item.name}
+                />
+              )}
+            />
+          </Animated.View>
+          {/* Top Rated Resturants Data */}
+          {this.state.showTopRated == false ||
+          this.state.Duplicate_Data_Top_Rated.length == 0 ? null : (
+            <View>
+              <View
+                style={{
+                  padding: 20,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={{ fontFamily: "poppinbold" }}>Top Rated</Text>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    this.props.navigation.navigate("SellAllResturant", {
+                      data: this.state.Duplicate_Data_Top_Rated,
+                    })
+                  }
+                >
+                  <Text style={{ color: "#0f76de", fontFamily: "poppin" }}>
+                    See All
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                showsHorizontalScrollIndicator={false}
+                horizontal
+                keyExtractor={(item) => item.name}
+                contentContainerStyle={{ marginHorizontal: 10 }}
+                data={this.state.Duplicate_Data_Top_Rated}
+                renderItem={({ item, index }) => (
+                  <CustomSingleScroll
+                    navigation={this.props.navigation}
+                    item={item}
+                  />
+                )}
+              />
+            </View>
+          )}
+          {/* <CustomSingleItemScroll/> */}
+
+          <View
+            style={{
+              padding: 20,
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text style={{ fontFamily: "poppinbold" }}>Near By </Text>
+            {/*  */}
+            <TouchableOpacity
+              onPress={() =>
+                this.props.navigation.navigate("SellAllResturant", {
+                  data: this.state.Duplicate_Data_Resturants,
+                })
+              }
+            >
+              <Text style={{ color: "#0f76de", fontFamily: "poppin" }}>
+                See All
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            nestedScrollEnabled={true}
+            ListEmptyComponent={() => {
+              return (
+                <View style={{ alignSelf: "center" }}>
+                  <Image
+                    style={{ width: 150, height: 150 }}
+                    source={require("../assets/food_Monochromatic.png")}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      color: "#5c5c5c",
+                      textAlign: "center",
+                    }}
+                  >
+                    Sorry! No Result Found
+                  </Text>
+                </View>
+              );
+            }}
+            keyExtractor={(item) => item.name}
+            data={this.state.Duplicate_Data_Resturants}
+            renderItem={({ item, index }) => (
+              <CustomSingleItemScroll
+                navigation={this.props.navigation}
+                item={item}
+              />
+            )}
+          />
+        </ScrollView>
+      </>
+    );
+  }
+}
+function mapStatetoProps(state) {
+  return { cartitem: state.foods.foodList };
+}
+function dispatchStatetoProps(dispatch) {
+  return { emptycart: ()=>dispatch({type:'Empty_Cart'}) };
+}
+
+
+export default connect(mapStatetoProps,dispatchStatetoProps)(HomeScreen);
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  header: {
+    backgroundColor: "#0f76de",
+    padding: 10,
+    justifyContent: "center",
+  },
+  ListButtons: {
+    borderWidth: 0.3,
+    borderColor: "#dddddd",
+    padding: 5,
+    marginRight: 4,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+  },
+  searchbarsection: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 20,
+  },
+  searchbar: {
+    width: "80%",
+    flexDirection: "row",
+    borderColor: "#dddddd",
+    borderWidth: 0.3,
+    borderRadius: 4,
+    padding: 10,
+    alignItems: "center",
+    backgroundColor: "#fcfcfc",
+  },
+  filterbutton: {
+    width: "10%",
+    borderColor: "#dddddd",
+    borderWidth: 0.3,
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 5,
+    backgroundColor: "#fcfcfc",
+  },
+  likedbutton: {
+    width: "10%",
+    borderColor: "#dddddd",
+    borderWidth: 0.3,
+
+    borderRadius: 4,
+    backgroundColor: "#fcfcfc",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  Cartnumbercontainer: {
+    position: "absolute",
+
+    right: 10,
+    bottom: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 30,
+   
+    justifyContent: "center",
+    alignItems: "center",
+    elevation:3,
+    shadowOffset:{
+      width:1,
+      height:1
+    },
+  shadowOpacity:0.4,
+    backgroundColor: "#0f76de",
+  },
+  mainCard: {
+    width: "95%",
+    marginTop: 10,
+
+    alignSelf: "center",
+
+    height: 200,
+    borderWidth: 0.3,
+    borderColor: "#dddddd",
+    borderRadius: 5,
+  },
+  DiscountCard: {
+    marginLeft: 10,
+    alignContent: "center",
+    height: 60,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    width: 50,
+    backgroundColor: "#0f76de",
+  },
+  ratingCard: {
+    padding: 4,
+    justifyContent: "flex-end",
+    borderTopLeftRadius: 10,
+    borderBottomLeftRadius: 10,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    backgroundColor: "#F8F8F8",
+    width: 50,
+    alignSelf: "flex-end",
+    top: 30,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+
+    width: "100%",
+    height: "100%",
+
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  openButton: {
+    backgroundColor: "#F194FF",
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+  },
+  textStyle: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  modalText: {
+    marginLeft: 10,
+    color: "#6c6c6c",
+  },
+  LoginButton: {
+    backgroundColor: "#0f76de",
+    padding: 8,
+    margin: 20,
+    borderRadius: 5,
+  },
+  text: {
+    fontWeight: "600",
+    fontSize: 15,
+    textAlign: "center",
+    letterSpacing: 1,
+    color: "#fff",
+  },
+});
